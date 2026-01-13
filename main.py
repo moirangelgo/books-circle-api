@@ -80,13 +80,34 @@ def root():
 
 
 @app.get("/clubs", response_model=list[Club], tags=["Clubs"])
-def obtener_clubs():
+def get_clubs():
     """
     Obtener todos los clubes de lectura
     
     Retorna una lista con todos los clubes registrados.
     """
     return list(clubs_db.values())
+
+
+@app.post("/clubs", tags=["Clubs"])
+def create_clubs(club: ClubCreate):
+    return club
+
+
+@app.get("/clubs/{clubId}", tags=["Clubs"])
+def get_clubs(clubId: int) -> Club:
+    return Club()
+
+
+@app.put("/clubs/{clubId}", tags=["Clubs"])
+def get_clubs(clubId: int) -> Club:
+    return Club()
+
+
+@app.delete("/clubs/{clubId}", tags=["Clubs"])
+def get_clubs(clubId: int) -> int:
+    return 204
+
 
 
 if __name__ == "__main__":
