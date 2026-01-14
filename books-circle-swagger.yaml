@@ -1,0 +1,1783 @@
+openapi: 3.0.3
+info:
+  title: BookCircle API
+  description: |
+    API REST para la gestión de clubes de lectura, permitiendo a usuarios crear comunidades,
+    proponer libros, organizar reuniones y compartir experiencias de lectura.
+    
+    ## Características principales
+    - Gestión completa de clubes de lectura
+    - Sistema de votación para selección de libros
+    - Seguimiento de progreso de lectura
+    - Programación de reuniones
+    - Sistema de reseñas y comentarios
+    
+    ## Autenticación
+    Todos los endpoints (excepto públicos) requieren un token JWT en el header Authorization.
+  version: 1.0.0
+  contact:
+    name: BookCircle Team
+    email: api@bookcircle.com
+    url: https://bookcircle.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.bookcircle.com/v1
+    description: Servidor de producción
+  - url: https://api-dev.bookcircle.com/v1
+    description: Servidor de desarrollo
+  - url: http://localhost:3000/v1
+    description: Servidor local
+
+tags:
+  - name: Clubs
+    description: Operaciones relacionadas con clubes de lectura
+  - name: Members
+    description: Gestión de miembros de clubes
+  - name: Books
+    description: Gestión de libros y propuestas
+  - name: Meetings
+    description: Programación y gestión de reuniones
+  - name: Reviews
+    description: Reseñas y comentarios sobre libros
+  - name: Auth
+    description: Autenticación y autorización
+
+paths:
+  # =============================================================================
+  # AUTHENTICATION
+  # =============================================================================
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Registrar nuevo usuario
+      description: Crea una nueva cuenta de usuario en la plataforma
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterInput'
+            example:
+              email: maria@example.com
+              password: SecurePass123!
+              username: marialectora
+              fullName: María González
+      responses:
+        '201':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+                    description: Token JWT para autenticación
+              example:
+                user:
+                  id: usr_abc123
+                  email: maria@example.com
+                  username: marialectora
+                  fullName: María González
+                  createdAt: '2024-12-28T10:00:00Z'
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: El email o username ya está registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Iniciar sesión
+      description: Autentica un usuario y retorna un token JWT
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+            example:
+              email: maria@example.com
+              password: SecurePass123!
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+                  expiresIn:
+                    type: integer
+                    description: Tiempo de expiración del token en segundos
+              example:
+                user:
+                  id: usr_abc123
+                  email: maria@example.com
+                  username: marialectora
+                  fullName: María González
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                expiresIn: 86400
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # =============================================================================
+  # CLUBS
+  # =============================================================================
+  /clubs:
+    get:
+      tags:
+        - Clubs
+      summary: Listar clubes de lectura
+      description: Obtiene una lista paginada de clubes públicos y privados del usuario
+      operationId: listClubs
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+        - name: theme
+          in: query
+          description: Filtrar por tema del club
+          schema:
+            type: string
+            enum: [fiction, non-fiction, fantasy, mystery, romance, sci-fi, biography, history]
+        - name: search
+          in: query
+          description: Buscar por nombre o descripción
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de clubes obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Club'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+              example:
+                data:
+                  - id: clb_xyz789
+                    name: Amantes de la Fantasía
+                    description: Club dedicado a novelas de fantasía épica
+                    theme: fantasy
+                    isPrivate: false
+                    memberCount: 24
+                    createdBy: usr_abc123
+                    createdAt: '2024-11-15T10:00:00Z'
+                  - id: clb_def456
+                    name: Lectores de Clásicos
+                    description: Exploramos la literatura clásica universal
+                    theme: fiction
+                    isPrivate: false
+                    memberCount: 18
+                    createdBy: usr_xyz456
+                    createdAt: '2024-10-20T15:30:00Z'
+                meta:
+                  total: 147
+                  limit: 20
+                  offset: 0
+                  hasMore: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Clubs
+      summary: Crear nuevo club
+      description: Crea un nuevo club de lectura (HU-001)
+      operationId: createClub
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClubInput'
+            example:
+              name: Sci-Fi Lovers
+              description: Club para fans de ciencia ficción y tecnología
+              theme: sci-fi
+              isPrivate: false
+      responses:
+        '201':
+          description: Club creado exitosamente
+          headers:
+            Location:
+              description: URL del club creado
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Club'
+              example:
+                id: clb_new123
+                name: Sci-Fi Lovers
+                description: Club para fans de ciencia ficción y tecnología
+                theme: sci-fi
+                isPrivate: false
+                memberCount: 1
+                createdBy: usr_abc123
+                createdAt: '2024-12-28T10:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /clubs/{clubId}:
+    get:
+      tags:
+        - Clubs
+      summary: Obtener detalles de un club
+      description: Obtiene información completa de un club específico
+      operationId: getClubById
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+      responses:
+        '200':
+          description: Detalles del club
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClubDetail'
+              example:
+                id: clb_xyz789
+                name: Amantes de la Fantasía
+                description: Club dedicado a novelas de fantasía épica
+                theme: fantasy
+                isPrivate: false
+                memberCount: 24
+                createdBy: usr_abc123
+                createdAt: '2024-11-15T10:00:00Z'
+                currentBook:
+                  id: bk_curr123
+                  title: El Nombre del Viento
+                  author: Patrick Rothfuss
+                  status: reading
+                upcomingMeeting:
+                  id: mtg_next456
+                  scheduledAt: '2024-12-30T18:00:00Z'
+                  location: Cafetería Central
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Clubs
+      summary: Actualizar club
+      description: Actualiza información del club (solo para administradores)
+      operationId: updateClub
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClubInput'
+      responses:
+        '200':
+          description: Club actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Club'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Clubs
+      summary: Eliminar club
+      description: Elimina un club (solo para el creador)
+      operationId: deleteClub
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+      responses:
+        '204':
+          description: Club eliminado exitosamente
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =============================================================================
+  # MEMBERS
+  # =============================================================================
+  /clubs/{clubId}/members:
+    get:
+      tags:
+        - Members
+      summary: Listar miembros del club
+      description: Obtiene la lista de miembros de un club (HU-003)
+      operationId: listClubMembers
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+        - name: role
+          in: query
+          description: Filtrar por rol
+          schema:
+            type: string
+            enum: [admin, member]
+      responses:
+        '200':
+          description: Lista de miembros
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Member'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+              example:
+                data:
+                  - userId: usr_abc123
+                    username: marialectora
+                    fullName: María González
+                    role: admin
+                    joinedAt: '2024-11-15T10:00:00Z'
+                    booksRead: 5
+                  - userId: usr_def456
+                    username: juanreader
+                    fullName: Juan Pérez
+                    role: member
+                    joinedAt: '2024-11-20T14:30:00Z'
+                    booksRead: 3
+                meta:
+                  total: 24
+                  limit: 20
+                  offset: 0
+                  hasMore: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Members
+      summary: Unirse a un club
+      description: El usuario actual se une al club especificado (HU-002)
+      operationId: joinClub
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+      responses:
+        '201':
+          description: Usuario unido al club exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+              example:
+                userId: usr_abc123
+                username: marialectora
+                fullName: María González
+                role: member
+                joinedAt: '2024-12-28T10:00:00Z'
+                booksRead: 0
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El usuario ya es miembro del club
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /clubs/{clubId}/members/{userId}:
+    delete:
+      tags:
+        - Members
+      summary: Salir del club o remover miembro
+      description: El usuario actual sale del club, o un admin remueve a un miembro
+      operationId: leaveClub
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - name: userId
+          in: path
+          required: true
+          description: ID del usuario a remover
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Usuario removido del club exitosamente
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =============================================================================
+  # BOOKS
+  # =============================================================================
+  /clubs/{clubId}/books:
+    get:
+      tags:
+        - Books
+      summary: Listar libros del club
+      description: Obtiene todos los libros propuestos en el club con su estado
+      operationId: listClubBooks
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - name: status
+          in: query
+          description: Filtrar por estado del libro
+          schema:
+            type: string
+            enum: [proposed, reading, completed]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: Lista de libros
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Book'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+              example:
+                data:
+                  - id: bk_123abc
+                    title: El Nombre del Viento
+                    author: Patrick Rothfuss
+                    isbn: '9788401352836'
+                    coverUrl: https://example.com/covers/nombre-viento.jpg
+                    status: reading
+                    proposedBy: usr_abc123
+                    proposedAt: '2024-12-01T10:00:00Z'
+                    votes: 18
+                    startedAt: '2024-12-15T00:00:00Z'
+                  - id: bk_456def
+                    title: 1984
+                    author: George Orwell
+                    isbn: '9780451524935'
+                    status: completed
+                    proposedBy: usr_def456
+                    proposedAt: '2024-11-01T10:00:00Z'
+                    votes: 22
+                    startedAt: '2024-11-15T00:00:00Z'
+                    completedAt: '2024-12-10T00:00:00Z'
+                meta:
+                  total: 8
+                  limit: 20
+                  offset: 0
+                  hasMore: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Books
+      summary: Proponer un libro
+      description: Propone un nuevo libro para que el club lo lea (HU-004)
+      operationId: proposeBook
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+            example:
+              title: El Hobbit
+              author: J.R.R. Tolkien
+              isbn: '9780547928227'
+              description: Una aventura épica en la Tierra Media
+              coverUrl: https://example.com/covers/hobbit.jpg
+      responses:
+        '201':
+          description: Libro propuesto exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+              example:
+                id: bk_new789
+                title: El Hobbit
+                author: J.R.R. Tolkien
+                isbn: '9780547928227'
+                description: Una aventura épica en la Tierra Media
+                coverUrl: https://example.com/covers/hobbit.jpg
+                status: proposed
+                proposedBy: usr_abc123
+                proposedAt: '2024-12-28T10:00:00Z'
+                votes: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /clubs/{clubId}/books/{bookId}:
+    get:
+      tags:
+        - Books
+      summary: Obtener detalles de un libro
+      description: Obtiene información completa del libro incluyendo progreso de usuarios
+      operationId: getBookById
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - $ref: '#/components/parameters/BookIdParam'
+      responses:
+        '200':
+          description: Detalles del libro
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookDetail'
+              example:
+                id: bk_123abc
+                title: El Nombre del Viento
+                author: Patrick Rothfuss
+                isbn: '9788401352836'
+                description: Primera entrega de Crónica del Asesino de Reyes
+                coverUrl: https://example.com/covers/nombre-viento.jpg
+                status: reading
+                proposedBy: usr_abc123
+                proposedAt: '2024-12-01T10:00:00Z'
+                votes: 18
+                startedAt: '2024-12-15T00:00:00Z'
+                totalPages: 662
+                averageProgress: 45
+                reviewCount: 3
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /clubs/{clubId}/books/{bookId}/votes:
+    post:
+      tags:
+        - Books
+      summary: Votar por un libro
+      description: El usuario vota por un libro propuesto (HU-005)
+      operationId: voteForBook
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - $ref: '#/components/parameters/BookIdParam'
+      responses:
+        '201':
+          description: Voto registrado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bookId:
+                    type: string
+                  userId:
+                    type: string
+                  votedAt:
+                    type: string
+                    format: date-time
+                  totalVotes:
+                    type: integer
+              example:
+                bookId: bk_123abc
+                userId: usr_abc123
+                votedAt: '2024-12-28T10:00:00Z'
+                totalVotes: 19
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El usuario ya votó por este libro
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Books
+      summary: Retirar voto
+      description: El usuario retira su voto de un libro
+      operationId: removeVote
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - $ref: '#/components/parameters/BookIdParam'
+      responses:
+        '204':
+          description: Voto retirado exitosamente
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /clubs/{clubId}/books/{bookId}/progress:
+    get:
+      tags:
+        - Books
+      summary: Obtener progreso personal
+      description: Obtiene el progreso de lectura del usuario actual
+      operationId: getReadingProgress
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - $ref: '#/components/parameters/BookIdParam'
+      responses:
+        '200':
+          description: Progreso de lectura
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingProgress'
+              example:
+                userId: usr_abc123
+                bookId: bk_123abc
+                currentPage: 245
+                totalPages: 662
+                percentage: 37
+                lastUpdated: '2024-12-28T10:00:00Z'
+                status: reading
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Books
+      summary: Actualizar progreso de lectura
+      description: Actualiza el progreso de lectura del usuario (HU-006)
+      operationId: updateReadingProgress
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - $ref: '#/components/parameters/BookIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadingProgressInput'
+            example:
+              currentPage: 300
+              status: reading
+      responses:
+        '200':
+          description: Progreso actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingProgress'
+              example:
+                userId: usr_abc123
+                bookId: bk_123abc
+                currentPage: 300
+                totalPages: 662
+                percentage: 45
+                lastUpdated: '2024-12-28T11:00:00Z'
+                status: reading
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =============================================================================
+  # MEETINGS
+  # =============================================================================
+  /clubs/{clubId}/meetings:
+    get:
+      tags:
+        - Meetings
+      summary: Listar reuniones
+      description: Obtiene las reuniones programadas del club
+      operationId: listMeetings
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - name: status
+          in: query
+          description: Filtrar por estado
+          schema:
+            type: string
+            enum: [upcoming, past, cancelled]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: Lista de reuniones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Meeting'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+              example:
+                data:
+                  - id: mtg_123abc
+                    bookId: bk_123abc
+                    bookTitle: El Nombre del Viento
+                    scheduledAt: '2024-12-30T18:00:00Z'
+                    duration: 120
+                    location: Cafetería Central
+                    locationUrl: https://maps.google.com/?q=Cafeteria+Central
+                    description: Discutiremos los primeros 10 capítulos
+                    createdBy: usr_abc123
+                    attendeeCount: 15
+                    status: upcoming
+                  - id: mtg_456def
+                    bookId: bk_456def
+                    bookTitle: '1984'
+                    scheduledAt: '2024-12-15T19:00:00Z'
+                    duration: 90
+                    location: Biblioteca Municipal
+                    description: Reflexiones finales sobre el libro
+                    createdBy: usr_abc123
+                    attendeeCount: 18
+                    status: past
+                meta:
+                  total: 5
+                  limit: 20
+                  offset: 0
+                  hasMore: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Meetings
+      summary: Programar reunión
+      description: Crea una nueva reunión para el club (HU-007)
+      operationId: createMeeting
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeetingInput'
+            example:
+              bookId: bk_123abc
+              scheduledAt: '2025-01-10T18:00:00Z'
+              duration: 120
+              location: Cafetería Central
+              locationUrl: https://maps.google.com/?q=Cafeteria+Central
+              description: Discusión de los capítulos 15-25
+              isVirtual: false
+      responses:
+        '201':
+          description: Reunión creada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meeting'
+              example:
+                id: mtg_new789
+                bookId: bk_123abc
+                bookTitle: El Nombre del Viento
+                scheduledAt: '2025-01-10T18:00:00Z'
+                duration: 120
+                location: Cafetería Central
+                locationUrl: https://maps.google.com/?q=Cafeteria+Central
+                description: Discusión de los capítulos 15-25
+                createdBy: usr_abc123
+                attendeeCount: 1
+                status: upcoming
+                isVirtual: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /clubs/{clubId}/meetings/{meetingId}:
+    get:
+      tags:
+        - Meetings
+      summary: Obtener detalles de reunión
+      description: Obtiene información completa de una reunión
+      operationId: getMeetingById
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - name: meetingId
+          in: path
+          required: true
+          description: ID de la reunión
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detalles de la reunión
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeetingDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Meetings
+      summary: Actualizar reunión
+      description: Actualiza detalles de una reunión (solo admin)
+      operationId: updateMeeting
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - name: meetingId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeetingInput'
+      responses:
+        '200':
+          description: Reunión actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meeting'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Meetings
+      summary: Cancelar reunión
+      description: Cancela una reunión programada
+      operationId: cancelMeeting
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - name: meetingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Reunión cancelada
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /clubs/{clubId}/meetings/{meetingId}/attendance:
+    put:
+      tags:
+        - Meetings
+      summary: Confirmar asistencia
+      description: El usuario confirma o declina su asistencia a una reunión (HU-008)
+      operationId: updateAttendance
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - name: meetingId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttendanceInput'
+            example:
+              status: attending
+              note: Llegaré un poco tarde
+      responses:
+        '200':
+          description: Asistencia actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attendance'
+              example:
+                userId: usr_abc123
+                meetingId: mtg_123abc
+                status: attending
+                note: Llegaré un poco tarde
+                updatedAt: '2024-12-28T10:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =============================================================================
+  # REVIEWS
+  # =============================================================================
+  /clubs/{clubId}/books/{bookId}/reviews:
+    get:
+      tags:
+        - Reviews
+      summary: Listar reseñas
+      description: Obtiene las reseñas de un libro en el club
+      operationId: listReviews
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - $ref: '#/components/parameters/BookIdParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+        - name: sortBy
+          in: query
+          description: Ordenar por campo
+          schema:
+            type: string
+            enum: [date, rating]
+            default: date
+      responses:
+        '200':
+          description: Lista de reseñas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Review'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+              example:
+                data:
+                  - id: rev_123abc
+                    userId: usr_abc123
+                    username: marialectora
+                    rating: 5
+                    title: Una obra maestra
+                    content: Este libro me transportó completamente a otro mundo...
+                    createdAt: '2024-12-28T10:00:00Z'
+                    likesCount: 12
+                  - id: rev_456def
+                    userId: usr_def456
+                    username: juanreader
+                    rating: 4
+                    title: Muy bueno pero lento al inicio
+                    content: Me costó engancharme los primeros capítulos pero...
+                    createdAt: '2024-12-27T15:30:00Z'
+                    likesCount: 8
+                meta:
+                  total: 3
+                  limit: 20
+                  offset: 0
+                  hasMore: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Reviews
+      summary: Publicar reseña
+      description: El usuario publica una reseña de un libro (HU-009)
+      operationId: createReview
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - $ref: '#/components/parameters/BookIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewInput'
+            example:
+              rating: 5
+              title: Simplemente espectacular
+              content: Patrick Rothfuss ha creado un mundo increíblemente rico y personajes memorables. La prosa es poética y la historia te atrapa desde el primer momento.
+      responses:
+        '201':
+          description: Reseña publicada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+              example:
+                id: rev_new789
+                userId: usr_abc123
+                username: marialectora
+                rating: 5
+                title: Simplemente espectacular
+                content: Patrick Rothfuss ha creado un mundo increíblemente rico...
+                createdAt: '2024-12-28T10:00:00Z'
+                likesCount: 0
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El usuario ya tiene una reseña para este libro
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /clubs/{clubId}/books/{bookId}/reviews/{reviewId}:
+    put:
+      tags:
+        - Reviews
+      summary: Actualizar reseña
+      description: Actualiza una reseña existente
+      operationId: updateReview
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - $ref: '#/components/parameters/BookIdParam'
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewInput'
+      responses:
+        '200':
+          description: Reseña actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Reviews
+      summary: Eliminar reseña
+      description: Elimina una reseña
+      operationId: deleteReview
+      parameters:
+        - $ref: '#/components/parameters/ClubIdParam'
+        - $ref: '#/components/parameters/BookIdParam'
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Reseña eliminada
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+# =============================================================================
+# COMPONENTS
+# =============================================================================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtenido al hacer login
+
+  parameters:
+    ClubIdParam:
+      name: clubId
+      in: path
+      required: true
+      description: ID único del club
+      schema:
+        type: string
+      example: clb_xyz789
+
+    BookIdParam:
+      name: bookId
+      in: path
+      required: true
+      description: ID único del libro
+      schema:
+        type: string
+      example: bk_123abc
+
+    LimitParam:
+      name: limit
+      in: query
+      description: Número máximo de resultados a retornar
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    OffsetParam:
+      name: offset
+      in: query
+      description: Número de resultados a saltar (para paginación)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+  schemas:
+    # =========================================================================
+    # AUTH SCHEMAS
+    # =========================================================================
+    RegisterInput:
+      type: object
+      required:
+        - email
+        - password
+        - username
+        - fullName
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email del usuario
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Contraseña (mínimo 8 caracteres)
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: '^[a-zA-Z0-9_]+$'
+          description: Nombre de usuario único
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Nombre completo
+
+    LoginInput:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID único del usuario
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        fullName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    # =========================================================================
+    # CLUB SCHEMAS
+    # =========================================================================
+    ClubInput:
+      type: object
+      required:
+        - name
+        - description
+        - theme
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          description: Nombre del club
+        description:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Descripción del club
+        theme:
+          type: string
+          enum:
+            - fiction
+            - non-fiction
+            - fantasy
+            - mystery
+            - romance
+            - sci-fi
+            - biography
+            - history
+          description: Tema principal del club
+        isPrivate:
+          type: boolean
+          default: false
+          description: Si es privado, requiere invitación
+
+    Club:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        theme:
+          type: string
+        isPrivate:
+          type: boolean
+        memberCount:
+          type: integer
+          description: Número total de miembros
+        createdBy:
+          type: string
+          description: ID del usuario creador
+        createdAt:
+          type: string
+          format: date-time
+
+    ClubDetail:
+      allOf:
+        - $ref: '#/components/schemas/Club'
+        - type: object
+          properties:
+            currentBook:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: string
+                title:
+                  type: string
+                author:
+                  type: string
+                status:
+                  type: string
+            upcomingMeeting:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: string
+                scheduledAt:
+                  type: string
+                  format: date-time
+                location:
+                  type: string
+
+    # =========================================================================
+    # MEMBER SCHEMAS
+    # =========================================================================
+    Member:
+      type: object
+      properties:
+        userId:
+          type: string
+        username:
+          type: string
+        fullName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        role:
+          type: string
+          enum: [admin, member]
+        joinedAt:
+          type: string
+          format: date-time
+        booksRead:
+          type: integer
+          description: Número de libros completados en este club
+
+    # =========================================================================
+    # BOOK SCHEMAS
+    # =========================================================================
+    BookInput:
+      type: object
+      required:
+        - title
+        - author
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        author:
+          type: string
+          minLength: 1
+          maxLength: 100
+        isbn:
+          type: string
+          pattern: '^[0-9-]{10,17}$'
+          nullable: true
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
+        totalPages:
+          type: integer
+          minimum: 1
+          nullable: true
+
+    Book:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        author:
+          type: string
+        isbn:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        coverUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [proposed, reading, completed]
+        proposedBy:
+          type: string
+          description: ID del usuario que propuso el libro
+        proposedAt:
+          type: string
+          format: date-time
+        votes:
+          type: integer
+          description: Número de votos recibidos
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        totalPages:
+          type: integer
+          nullable: true
+
+    BookDetail:
+      allOf:
+        - $ref: '#/components/schemas/Book'
+        - type: object
+          properties:
+            averageProgress:
+              type: number
+              format: float
+              description: Porcentaje promedio de lectura de todos los miembros
+            reviewCount:
+              type: integer
+              description: Número de reseñas publicadas
+
+    ReadingProgressInput:
+      type: object
+      required:
+        - currentPage
+      properties:
+        currentPage:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [not-started, reading, completed]
+          default: reading
+
+    ReadingProgress:
+      type: object
+      properties:
+        userId:
+          type: string
+        bookId:
+          type: string
+        currentPage:
+          type: integer
+        totalPages:
+          type: integer
+        percentage:
+          type: number
+          format: float
+          description: Porcentaje de progreso (0-100)
+        lastUpdated:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [not-started, reading, completed]
+
+    # =========================================================================
+    # MEETING SCHEMAS
+    # =========================================================================
+    MeetingInput:
+      type: object
+      required:
+        - scheduledAt
+        - duration
+      properties:
+        bookId:
+          type: string
+          description: Libro a discutir en la reunión
+          nullable: true
+        scheduledAt:
+          type: string
+          format: date-time
+          description: Fecha y hora de la reunión
+        duration:
+          type: integer
+          minimum: 15
+          maximum: 480
+          description: Duración en minutos
+        location:
+          type: string
+          maxLength: 200
+          description: Ubicación física de la reunión
+          nullable: true
+        locationUrl:
+          type: string
+          format: uri
+          description: URL de Google Maps o similar
+          nullable: true
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        isVirtual:
+          type: boolean
+          default: false
+        virtualMeetingUrl:
+          type: string
+          format: uri
+          nullable: true
+
+    Meeting:
+      type: object
+      properties:
+        id:
+          type: string
+        bookId:
+          type: string
+          nullable: true
+        bookTitle:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+          format: date-time
+        duration:
+          type: integer
+        location:
+          type: string
+          nullable: true
+        locationUrl:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        createdBy:
+          type: string
+        attendeeCount:
+          type: integer
+        status:
+          type: string
+          enum: [upcoming, past, cancelled]
+        isVirtual:
+          type: boolean
+        virtualMeetingUrl:
+          type: string
+          nullable: true
+
+    MeetingDetail:
+      allOf:
+        - $ref: '#/components/schemas/Meeting'
+        - type: object
+          properties:
+            attendees:
+              type: array
+              items:
+                type: object
+                properties:
+                  userId:
+                    type: string
+                  username:
+                    type: string
+                  status:
+                    type: string
+                    enum: [attending, not-attending, maybe]
+                  note:
+                    type: string
+                    nullable: true
+
+    AttendanceInput:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [attending, not-attending, maybe]
+        note:
+          type: string
+          maxLength: 200
+          nullable: true
+
+    Attendance:
+      type: object
+      properties:
+        userId:
+          type: string
+        meetingId:
+          type: string
+        status:
+          type: string
+          enum: [attending, not-attending, maybe]
+        note:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+
+    # =========================================================================
+    # REVIEW SCHEMAS
+    # =========================================================================
+    ReviewInput:
+      type: object
+      required:
+        - rating
+        - title
+        - content
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Calificación de 1 a 5 estrellas
+        title:
+          type: string
+          minLength: 3
+          maxLength: 100
+        content:
+          type: string
+          minLength: 50
+          maxLength: 2000
+          description: Contenido de la reseña
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        username:
+          type: string
+        userAvatarUrl:
+          type: string
+          nullable: true
+        rating:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        likesCount:
+          type: integer
+
+    # =========================================================================
+    # COMMON SCHEMAS
+    # =========================================================================
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total de elementos disponibles
+        limit:
+          type: integer
+          description: Límite de elementos por página
+        offset:
+          type: integer
+          description: Offset actual
+        hasMore:
+          type: boolean
+          description: Indica si hay más elementos disponibles
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Código de error
+        message:
+          type: string
+          description: Mensaje descriptivo del error
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+          nullable: true
+          description: Detalles adicionales del error (validación)
+
+
+  responses:
+    BadRequest:
+      description: Solicitud incorrecta
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "VALIDATION_ERROR"
+            message: "Los datos proporcionados son inválidos"
+            details:
+              - field: "email"
+                message: "El email ya está registrado"
+
+    Unauthorized:
+      description: No autorizado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "UNAUTHORIZED"
+            message: "Token de autenticación inválido o expirado"
+
+    Forbidden:
+      description: Acceso prohibido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "FORBIDDEN"
+            message: "No tienes permisos para realizar esta acción"
+
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "NOT_FOUND"
+            message: "El recurso solicitado no existe"
+
+    Conflict:
+      description: Conflicto
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "CONFLICT"
+            message: "El usuario ya es miembro del club"
