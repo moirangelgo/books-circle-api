@@ -13,12 +13,12 @@ app = FastAPI(
 
 class Club(BaseModel):
     """Model representing a reading club"""
-    id: int
-    name: str
-    description: str
-    created_date: str
-    favorite_genre: str
-    members: int
+    id: int | int = None
+    name: str | str = None
+    description: str | str = None
+    created_date: str | str = None
+    favorite_genre: str | str = None
+    members: int | int = None
 
 class ClubCreate(BaseModel):
     """Model for creating a new club (without ID)"""
