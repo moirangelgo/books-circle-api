@@ -34,6 +34,22 @@ class ClubUpdate(BaseModel):
     favorite_genre: str | None = None
     members: int | None = None
 
+ #     ===     Books (Schemas)     ===    #
+class Book(BaseModel):
+    id: int
+    club_id: int
+    title: str
+    author: str
+    votes: int = 0
+    progress: int = 0  # Porcentaje
+
+class BookCreate(BaseModel):
+    title: str
+    author: str
+
+class ProgressUpdate(BaseModel):
+    progress: int
+
 
 # ============= DATOS ESTÁTICOS (Simulación de BD) =============
 
@@ -63,10 +79,30 @@ clubs_db = {
         "members": 15
     }
 }
+#Books (DB)
+books_db = {
+    1: {
+        "id": 1, 
+        "club_id": 1, 
+        "title": "Cien años de soledad", 
+        "author": "Gabo", 
+        "votes": 5, 
+        "progress": 20
+        },
+    2: {
+        "id": 2, 
+        "club_id": 1, 
+        "title": "Drácula", 
+        "author": "Bram Stoker", 
+        "votes": 2, 
+        "progress": 0
+        }
+}
 
 # Variable para generar IDs únicos
 next_id = 4
 
+next_book_id = 3
 
 # ============= ENDPOINTS =============
 
@@ -108,7 +144,73 @@ def get_clubs(clubId: int) -> Club:
 def get_clubs(clubId: int) -> int:
     return 204
 
+#     ===           Books (ENDPOINTS)       ===       #
 
+
+@app.get("/clubs/{clubId}/books", tags=["Books"])
+def get_all_books_of_club(clubId: int):
+    # Filtro librosue con el clubId
+    resultado = []
+    for book in books_db.values():
+        if book["club_id"] == clubId:
+            resultado.append(book)
+    return resultado
+
+@app.post("/clubs/{clubId}/books", tags=["Books"])
+def create_book(clubId: int, book: BookCreate):
+    global next_book_id
+    # Diccionario del nuevo libro
+    nuevo_libro = {
+        "id": next_book_id,
+        "club_id": clubId,
+        "title": book.title,
+        "author": book.author,
+        "votes": 0,
+        "progress": 0
+    }
+    books_db[next_book_id] = nuevo_libro
+    next_book_id += 1
+    return nuevo_libro
+
+@app.get("/clubs/{clubId}/books/{bookId}", tags=["Books"])
+def get_one_book(clubId: int, bookId: int):
+    libro = books_db.get(bookId)
+    if libro and libro["club_id"] == clubId:
+        return libro
+    raise HTTPException(status_code=404, detail="Libro no encontrado")
+
+@app.post("/clubs/{clubId}/books/{bookId}/votes", tags=["Books"])
+def add_vote(clubId: int, bookId: int):
+    libro = books_db.get(bookId)
+    if libro and libro["club_id"] == clubId:
+        libro["votes"] += 1
+        return {"mensaje": "Voto sumado", "total": libro["votes"]}
+    raise HTTPException(status_code=404, detail="Libro no encontrado")
+
+@app.delete("/clubs/{clubId}/books/{bookId}/votes", tags=["Books"])
+def remove_vote(clubId: int, bookId: int):
+    libro = books_db.get(bookId)
+    if libro and libro["club_id"] == clubId:
+        if libro["votes"] > 0:
+            libro["votes"] -= 1
+        return {"mensaje": "Voto restado", "total": libro["votes"]}
+    raise HTTPException(status_code=404, detail="Libro no encontrado")
+
+@app.get("/clubs/{clubId}/books/{bookId}/progress", tags=["Books"])
+def get_progress(clubId: int, bookId: int):
+    libro = books_db.get(bookId)
+    if libro and libro["club_id"] == clubId:
+        return {"progreso": libro["progress"]}
+    raise HTTPException(status_code=404, detail="Libro no encontrado")
+
+@app.put("/clubs/{clubId}/books/{bookId}/progress", tags=["Books"])
+def update_progress(clubId: int, bookId: int, body: ProgressUpdate):
+    libro = books_db.get(bookId)
+    if libro and libro["club_id"] == clubId:
+        libro["progress"] = body.progress
+        return {"mensaje": "Progreso actualizado", "nuevo_progreso": libro["progress"]}
+    raise HTTPException(status_code=404, detail="Libro no encontrado")
+#       ===       Books (ENDPOINTS) FIN        ===       #
 
 if __name__ == "__main__":
     import uvicorn
