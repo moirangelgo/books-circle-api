@@ -143,6 +143,7 @@ def get_clubs(clubId: int) -> Club:
 def get_clubs(clubId: int) -> int:
     return 204
 
+
 # Endpoints REVIEWS - - - - - 
 @app.get("/reviews", response_model=list[Review], tags=["Reviews"])
 def get_reviews():
