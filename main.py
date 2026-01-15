@@ -34,27 +34,28 @@ class ClubUpdate(BaseModel):
     favorite_genre: str | None = None
     members: int | None = None
 
-# Modelos para REVIEWS - - - 
+
+#1 Modelos para REVIEWS - - - 
 class Review(BaseModel):
     '''Modelo que representa una reseña'''
-    id: int 
-    book_id: int
-    user_id: int
-    rating: int
+    id: str
+    bookId: str
+    userId: str
     comment: str
+    rating: int
 
 class ReviewCreate(BaseModel):
     '''Modelo para crear una reseña'''
-    book_id: int
-    user_id: int
-    rating: int
+    bookId: str
+    userId: str
     comment: str
+    rating: int
 
-class ReviewUpdate(BaseModel):
-    '''Modelo para actualizar una reseña '''
-    rating: int | None = None
-    comment: str | None = None
-
+class ReviewUpdate(BaseModel): 
+    '''Campos opcionales para actualizar solo lo que se desee'''
+    comment: str | None = None  # Opcional
+    rating: int | None = None   # Opcional
+    
 
 # ============= DATOS ESTÁTICOS (Simulación de BD) =============
 
@@ -89,18 +90,22 @@ clubs_db = {
 next_id = 4
 
 
-# Datos para Reviews - - - - - 
+#2 Nuevos datos para Simular BD Reviews - - - - - 
 reviews_db = {
-    1: {
-        "id": 1,
-        "book_id": 101,
-        "user_id": 1,
-        "rating": 5,
-        "comment": "¡Un libro que atrapa de inicio a fin!",
-        "date": "2024-03-20"
-    }
+    "1": {"id": "1", 
+          "bookId": "101", 
+          "userId": "user_1", 
+          "comment": "Excelente libro", 
+          "rating": 5
+          },
+    "2": {"id": "2", 
+          "bookId": "102", 
+          "userId": "user_2", 
+          "comment": "El final estuvo confuso", 
+          "rating": 2
+          }
 }
-next_review_id = 2
+next_review_id = 3
 
 
 # ============= ENDPOINTS =============
@@ -147,20 +152,48 @@ def get_clubs(clubId: int) -> int:
 # Endpoints REVIEWS - - - - - 
 @app.get("/reviews", response_model=list[Review], tags=["Reviews"])
 def get_reviews():
-    """Listar todas las reseñas"""
+    """Retorna todas las reseñas registradas"""
     return list(reviews_db.values())
 
-@app.post("/reviews", tags=["Reviews"])
-def create_review(review: ReviewCreate):
-    return review #devuelve reseña para confirmar
 
-@app.put("/reviews/{reviewId}", tags=["Reviews"])
-def update_review(reviewId: int) -> Review:
-    return Review()
+@app.post("/reviews", response_model=Review, status_code=status.HTTP_201_CREATED, tags=["Reviews"])
+def create_review(review_input: ReviewCreate):
+    """Crea una nueva reseña y le asigna un ID"""
+    global next_review_id
+    new_id = str(next_review_id) #el usuario no crea un ID se genera atm
+    
+    new_review = {"id": new_id, **review_input.dict()} #crear un objeto uniendo el ID generado con los datos ingresados
+    reviews_db[new_id] = new_review #se guarda el Id en el diccionario de BD simulada
+    next_review_id += 1 #actualizar el contador de reviews
 
-@app.delete("/reviews/{reviewId}", tags=["Reviews"])
-def delete_review(reviewId: int):
-    return 204 #simular la eliminación de una reseña
+    return new_review
+
+
+@app.put("/reviews/{review_id}", response_model=Review, tags=["Reviews"])
+def update_review(review_id: str, review_input: ReviewUpdate):
+    """Actualizar una reseña existente"""
+    if review_id not in reviews_db: #Verificar si ya existe una reseña para actualizar
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+    
+    stored_review = reviews_db[review_id] #Para obtener los datos actuales (ya guardados)
+
+    update_data = review_input.model_dump(exclude_unset=True) 
+    updated_item = {**stored_review, **update_data} # nuevo dict 
+
+    reviews_db[review_id] = updated_item
+
+    return updated_item
+
+
+@app.delete("/reviews/{review_id}", tags=["Reviews"])
+def delete_review(review_id: str):
+    """Eliminar una reseña"""
+    if review_id not in reviews_db:
+        raise HTTPException(status_code=404, detail="No hay una reseña con ese ID")
+    
+    del reviews_db[review_id]
+    
+    return {"message": "Reseña eliminada correctamente"} #200
 
 
 
