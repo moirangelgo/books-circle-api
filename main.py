@@ -45,6 +45,27 @@ class Book(BaseModel):
     author: str
     votes: int = 0
     progress: int = 0  # Porcentaje
+# Modelos para REVIEWS - - - 
+class Review(BaseModel):
+    '''Modelo que representa una reseña'''
+    id: int 
+    book_id: int
+    user_id: int
+    rating: int
+    comment: str
+
+class ReviewCreate(BaseModel):
+    '''Modelo para crear una reseña'''
+    book_id: int
+    user_id: int
+    rating: int
+    comment: str
+
+class ReviewUpdate(BaseModel):
+    '''Modelo para actualizar una reseña '''
+    rating: int | None = None
+    comment: str | None = None
+
 
 class BookCreate(BaseModel):
     title: str
@@ -243,6 +264,20 @@ members_db = {
 next_id = 4
 
 
+# Datos para Reviews - - - - - 
+reviews_db = {
+    1: {
+        "id": 1,
+        "book_id": 101,
+        "user_id": 1,
+        "rating": 5,
+        "comment": "¡Un libro que atrapa de inicio a fin!",
+        "date": "2024-03-20"
+    }
+}
+next_review_id = 2
+
+
 # ============= ENDPOINTS =============
 
 @app.get("/")
@@ -414,6 +449,24 @@ def delete_member(clubId: int, userId: int) -> int:
     Eliminar un miembro del club
     """
     return 204
+# Endpoints REVIEWS - - - - - 
+@app.get("/reviews", response_model=list[Review], tags=["Reviews"])
+def get_reviews():
+    """Listar todas las reseñas"""
+    return list(reviews_db.values())
+
+@app.post("/reviews", tags=["Reviews"])
+def create_review(review: ReviewCreate):
+    return review #devuelve reseña para confirmar
+
+@app.put("/reviews/{reviewId}", tags=["Reviews"])
+def update_review(reviewId: int) -> Review:
+    return Review()
+
+@app.delete("/reviews/{reviewId}", tags=["Reviews"])
+def delete_review(reviewId: int):
+    return 204 #simular la eliminación de una reseña
+
 
 
 if __name__ == "__main__":
