@@ -41,41 +41,41 @@ class ClubUpdate(BaseModel):
 
 #--------------------Meetings---------------------------
 class Meeting(BaseModel):
-    id: str
-    bookId: Optional[str] = None
-    bookTitle: Optional[str] = None
+    id: str | str = None
+    bookId: str| str = None
+    bookTitle: str| str = None
     scheduledAt: datetime
     duration: int
-    location: Optional[str] = None
-    locationUrl: Optional[str] = None
-    description: Optional[str] = None
+    location: str| str = None
+    locationUrl: str| str = None
+    description: str| str = None
     createdBy: str
     attendeeCount: int
     status: str  # Próxima | Vencida | Cancelada
     isVirtual: bool
-    virtualMeetingUrl: Optional[str] = None
+    virtualMeetingUrl: str| str = None
 
 
 class MeetingCreate(BaseModel):
-    bookId: Optional[str] = None
+    bookId: str| str = None
     scheduledAt: datetime
     duration: int = Field(default=15, max_length=480)  #default valor mínimo max_leng valor máximo
     location: Optional[str] = Field(default=None, max_length=200)
-    locationUrl: Optional[str] = None
+    locationUrl: str| str = None
     description: Optional[str] = Field(default=None, max_length=500)
     isVirtual: bool = False
-    virtualMeetingUrl: Optional[str] = None
+    virtualMeetingUrl: str| str = None
 
 
 class MeetingUpdate(BaseModel):
-    bookId: Optional[str] = None
+    bookId: str| str = None
     scheduledAt: datetime
     duration: Optional [int] = Field(ge=15, le=480)  #ge(greater o equal) valor mínimo le(less o equal) valor máximo
     location: Optional[str] = Field(default=None, max_length=200)
-    locationUrl: Optional[str] = None
+    locationUrl: str| str = None
     description: Optional[str] = Field(default=None, max_length=500)
     isVirtual: bool = False
-    virtualMeetingUrl: Optional[str] = None
+    virtualMeetingUrl: str| str = None
 
 
 
