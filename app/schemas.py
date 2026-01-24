@@ -52,7 +52,22 @@ class BookOut(BaseModel):
     author: str
     votes: int = 0
     progress: int = 0  
-    
+
+
+
+class ReviewCreate(BaseModel):
+    book_id: int
+    user_id: int
+    rating: int
+    comment: str  
+
+
+class ReviewOut(BaseModel):
+    id: int
+    book_id: int
+    user_id: int
+    rating: int
+    comment: str  
 
 class Config:
     from_attributes = True 

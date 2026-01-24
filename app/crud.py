@@ -93,9 +93,6 @@ def create_book(db: Session, book: schemas.BookCreate):
 
 
 
-
-
-
 def get_book_by_id(db: Session, book_id: int, club_id: int):
     return db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
 
