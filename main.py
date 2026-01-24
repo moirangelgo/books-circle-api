@@ -30,7 +30,38 @@ def register_user(
     new_user = crud.create_user(db=db, user=user_in)
     return new_user
 
-@app.get("/clubs", response_model=list[schemas.ClubOut], status_code=201)
+
+@app.get("/clubs", response_model=list[schemas.ClubOut], status_code=200)
 def clubs(db: Session = Depends(get_db)):
     clubs = crud.get_clubs(db=db)
     return clubs
+
+
+@app.post("/clubs", response_model=schemas.ClubOut, status_code=201)
+def create_club(club_in: schemas.ClubCreate, db: Session = Depends(get_db)):
+    new_club = crud.create_club(db=db, club=club_in)
+    return new_club
+
+
+@app.put("/clubs/{club_id}", response_model=schemas.ClubOut, status_code=200)
+def update_club(club_id: int, club_in: schemas.ClubCreate, db: Session = Depends(get_db)):
+    new_club = crud.update_club(db=db, club=club_in, club_id=club_id)
+    if not new_club:
+        raise HTTPException(status_code=404, detail="Club no encontrado")
+    return new_club
+
+
+@app.get("/clubs/{club_id}", response_model=schemas.ClubOut, status_code=200)
+def get_club(club_id: int, db: Session = Depends(get_db)):
+    club = crud.get_club_by_id(db=db, club_id=club_id)
+    if not club:
+        raise HTTPException(status_code=404, detail="Club no encontrado")
+    return club
+
+
+@app.delete("/clubs/{club_id}", status_code=204)
+def delete_club(club_id: int, db: Session = Depends(get_db)):
+    club = crud.delete_club(db=db, club_id=club_id)
+    if not club:
+        raise HTTPException(status_code=404, detail="Club no encontrado")
+    return
