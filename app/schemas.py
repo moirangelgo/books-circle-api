@@ -21,5 +21,16 @@ class UserOut(BaseModel):
         populate_by_name=True
     )
 
+class ClubCreate(BaseModel):
+    """Model for creating a new club (without ID)"""
+    name: str
+    description: str
+    favorite_genre: str | None = None
+    members: int = 0
+
+class ClubOut(BaseModel):
+    name: str
+    description: str
+
 class Config:
     from_attributes = True 
