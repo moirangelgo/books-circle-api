@@ -32,9 +32,27 @@ class ClubCreate(BaseModel):
 
 
 class ClubOut(BaseModel):
+    id: int
     name: str
     description: str
 
+
+class BookCreate(BaseModel):
+    club_id: int
+    title: str
+    author: str
+    votes: int = 0
+    progress: int = 0  # Porcentaje
+
+
+class BookOut(BaseModel):
+    id: int
+    club_id: int
+    title: str
+    author: str
+    votes: int = 0
+    progress: int = 0  
+    
 
 class Config:
     from_attributes = True 

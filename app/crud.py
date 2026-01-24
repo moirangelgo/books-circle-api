@@ -66,3 +66,64 @@ def delete_club(db: Session, club_id: int):
     db.delete(db_club)
     db.commit()
     return db_club
+
+
+## BOOKS
+def get_books_by_club_id(db: Session, club_id: int):
+    # SELECT * FROM LIBROS WHERE CLUB_ID = club_id
+    return db.query(models.Book).filter(models.Book.club_id == club_id).all()
+
+
+def create_book(db: Session, book: schemas.BookCreate):
+    try:
+        db_book = models.Book(
+            club_id=book.club_id,
+            title=book.title,
+            author=book.author,
+            votes=book.votes,
+            progress=book.progress
+        )
+        db.add(db_book) 
+        db.commit()
+        db.refresh(db_book)
+        return db_book
+
+    except Exception as e:
+        return None
+
+
+
+
+
+
+def get_book_by_id(db: Session, book_id: int, club_id: int):
+    return db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
+
+
+def add_votes_by_book_id(db: Session, book_id: int, club_id: int):
+    book = db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
+    votes = book.votes
+    book.votes = votes + 1
+    db.add(book)
+    db.commit()
+    db.refresh(book)
+    return book.votes
+
+
+def delete_votes_by_book_id(db: Session, book_id: int, club_id: int):
+    book = db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
+    votes = book.votes
+    book.votes = votes - 1
+    db.add(book)
+    db.commit()
+    db.refresh(book)
+    return book.votes
+
+
+
+
+# CREATE
+# ALL
+# DETAIL
+# UPDATE
+# DELETE

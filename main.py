@@ -30,7 +30,7 @@ def register_user(
     new_user = crud.create_user(db=db, user=user_in)
     return new_user
 
-
+# CLUBS
 @app.get("/clubs", response_model=list[schemas.ClubOut], status_code=200)
 def clubs(db: Session = Depends(get_db)):
     clubs = crud.get_clubs(db=db)
@@ -65,3 +65,39 @@ def delete_club(club_id: int, db: Session = Depends(get_db)):
     if not club:
         raise HTTPException(status_code=404, detail="Club no encontrado")
     return
+
+
+@app.get("/clubs/{club_id}/books", response_model=list[schemas.BookOut], status_code=200)
+def get_books_by_club_id(club_id: int, db: Session = Depends(get_db)):
+    books = crud.get_books_by_club_id(db=db, club_id=club_id)
+    if not books:
+        raise HTTPException(status_code=404, detail="Libros no encontrados")
+    return books
+
+
+@app.post("/clubs/{club_id}/books", response_model=schemas.BookOut, status_code=201)
+def create_book(club_id: int, book_in: schemas.BookCreate, db: Session = Depends(get_db)):
+    new_book = crud.create_book(db=db, book=book_in)
+    if not new_book:
+        raise HTTPException(status_code=404, detail="Libro no creado")
+    return new_book
+
+
+@app.get("/clubs/{club_id}/books/{book_id}", response_model=schemas.BookOut, status_code=200)
+def get_book_details(club_id: int, book_id: int, db: Session = Depends(get_db)):
+    book = crud.get_book_by_id(db=db, book_id=book_id, club_id=club_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Libro no encontrado")
+    return book
+
+
+@app.get("/clubs/{club_id}/books/{book_id}/votes", status_code=200)
+def get_book_votes(club_id: int, book_id: int, db: Session = Depends(get_db)):
+    return crud.add_votes_by_book_id(db=db, book_id=book_id, club_id=club_id)
+
+
+@app.delete("/clubs/{club_id}/books/{book_id}/votes", status_code=204)
+def delete_book_votes(club_id: int, book_id: int, db: Session = Depends(get_db)):
+    return crud.delete_votes_by_book_id(db=db, book_id=book_id, club_id=club_id)    
+    
+
