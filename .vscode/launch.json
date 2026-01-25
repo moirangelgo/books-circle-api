@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "inputs": [
+    {
+      "id": "migrationName",
+      "type": "promptString",
+      "description": "Enter the migration message",
+      "default": "New migration"
+    }
+  ],
+  "configurations": [
+    {
+      "name": "BookCircle Migrations: Autogenerate Revision",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "alembic",
+      "args": ["revision", "--autogenerate", "-m", "${input:migrationName}"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "BookCircle Migrations: Upgrade Head",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "alembic",
+      "args": ["upgrade", "head"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "BookCircle API: FastAPI",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["main:app", "--reload"],
+      "jinja": true,
+      "console": "integratedTerminal"
+    }
+  ]
+}
