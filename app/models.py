@@ -43,3 +43,30 @@ class Review(Base):
     comment      = Column(String)
     created_date = Column(DateTime(timezone=True), server_default=func.now())
 
+
+class Testing(Base):
+    __tablename__ = "testing"
+    id           = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    comment      = Column(String)
+    book_id      = Column(Integer, ForeignKey("libros.id"), nullable=False)
+
+
+class Meeting(Base):
+    __tablename__ = "meetings"
+    id                = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    book_id           = Column(Integer, ForeignKey("libros.id"), nullable=False)
+    club_id           = Column(Integer, ForeignKey("clubes.id"), nullable=False)
+    book_title        = Column(String)
+    scheduled_at      = Column(DateTime(timezone=True))
+    duration          = Column(Integer, default=0)
+    location          = Column(String)
+    locationUrl       = Column(String)
+    description       = Column(String)
+    createdBy         = Column(String)
+    attendeeCount     = Column(Integer)
+    status            = Column(String)
+    isVirtual         = Column(Boolean)
+    virtualMeetingUrl = Column(String)
+
+
+

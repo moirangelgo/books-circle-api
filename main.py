@@ -133,3 +133,21 @@ def delete_review(review_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Review no eliminado")
     return
 
+
+@app.get("/clubs/{club_id}/meetings", status_code=200)
+def meetings(club_id: int, db: Session = Depends(get_db)):
+    return crud.get_meetings_by_club_id(db=db, club_id=club_id)
+
+
+@app.get("/clubs/{club_id}/meetings/{meeting_id}", status_code=200)
+def meetings(club_id: int, meeting_id:int, db: Session = Depends(get_db)):
+    return crud.get_meetings_by_id(db=db, meeting_id=meeting_id)
+
+
+@app.post("/clubs/{club_id}/meetings", status_code=201)
+def meetings(meeting : schemas.MeetingCreate, db: Session = Depends(get_db)):
+    meeting = crud.create_meeting(db=db, meeting=meeting)
+    if not meeting:
+        raise HTTPException(status_code=400, detail="No se pudo crear")
+    return
+

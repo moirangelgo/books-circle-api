@@ -168,10 +168,39 @@ def delete_review(db: Session, review_id: int):
     except Exception as e:
         return None
 
-# =========REVIEWS ============
+# =========MEETINGS ============
+def get_meetings_by_club_id(db: Session, club_id: int):
+    return db.query(models.Meeting).filter(models.Meeting.club_id == club_id).all()
 
-# CREATE
-# ALL
-# DETAIL
-# UPDATE
-# DELETE
+
+def get_meetings_by_id(db: Session, meeting_id: int):
+    return db.query(models.Meeting).filter(models.Meeting.id == meeting_id).first()
+
+
+def create_meeting(db: Session, meeting: schemas.MeetingCreate):
+    try:
+        db_meeting = models.Meeting(
+            id = meeting.id,
+            book_id = meeting.bookId,
+            club_id = meeting.clubId,
+            book_title = meeting.bookTitle,
+            scheduled_at = meeting.scheduledAt,
+            duration = meeting.duration,
+            location = meeting.location,
+            locationUrl = meeting.locationUrl,
+            description = meeting.description,
+            createdBy = meeting.createdBy,
+            attendeeCount = meeting.attendeeCount,
+            status = meeting.status,
+            isVirtual = meeting.isVirtual,
+            virtualMeetingUrl  = meeting.virtualMeetingUrl,
+        )
+        db.add(db_meeting) 
+        db.commit()
+        db.refresh(db_meeting)
+        return db_meeting
+
+    except Exception as e:
+        return None
+
+

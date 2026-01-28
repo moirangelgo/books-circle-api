@@ -77,5 +77,54 @@ class ReviewOut(BaseModel):
     rating: int
     comment: str  
 
+
+class MeetingCreate(BaseModel):
+    bookId: int| int = None
+    clubId: int| int = None
+    bookTitle: str| str = None
+    scheduledAt: str | None = None
+    duration: int | None = None
+    location: str| str = None
+    locationUrl: str| str = None
+    description: str| str = None
+    createdBy: str | None = None
+    attendeeCount: int | None = None
+    status: str | None = None  # Próxima | Vencida | Cancelada
+    isVirtual: bool | None = None
+    virtualMeetingUrl: str| str = None
+
+
+class MeetingUpdate(BaseModel):
+    id: str | str = None
+    bookId: str| str = None
+    bookTitle: str| str = None
+    scheduledAt: str | None = None
+    duration: int | None = None
+    location: str| str = None
+    locationUrl: str| str = None
+    description: str| str = None
+    createdBy: str | None = None
+    attendeeCount: int | None = None
+    status: str | None = None  # Próxima | Vencida | Cancelada
+    isVirtual: bool | None = None
+    virtualMeetingUrl: str| str = None
+
+
+class MeetingOut(BaseModel):
+    id: str | str = None
+    bookId: str| str = None
+    bookTitle: str| str = None
+    scheduledAt: str | None = None
+    duration: int | None = None
+    location: str| str = None
+    locationUrl: str| str = None
+    description: str| str = None
+    createdBy: str | None = None
+    attendeeCount: int | None = None
+    status: str | None = None  # Próxima | Vencida | Cancelada
+    isVirtual: bool | None = None
+    virtualMeetingUrl: str| str = None    
+
+
 class Config:
     from_attributes = True 
