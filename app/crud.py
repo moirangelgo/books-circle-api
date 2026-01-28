@@ -203,4 +203,24 @@ def create_meeting(db: Session, meeting: schemas.MeetingCreate):
     except Exception as e:
         return None
 
+# = = = = = Implementación DELETE CLUBS = = = = = 
+def delete_meeting(db: Session, club_id: int, meeting_id: int):
+    try:
+        db_meeting = db.query(models.Meeting).filter(
+            models.Meeting.id == meeting_id,
+            models.Meeting.club_id == club_id
+        ).first()
+
+        if db_meeting:
+            db.delete(db_meeting)
+            db.commit()
+            return db_meeting  # para confirmar
+        return None 
+    
+    except Exception as e:
+        return None # En caso no exista
+
+
+
+
 
