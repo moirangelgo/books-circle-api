@@ -66,6 +66,7 @@ def delete_club(club_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Club no encontrado")
     return
 
+### Endpoints: B o o k s ###
 
 @app.get("/clubs/{club_id}/books", response_model=list[schemas.BookOut], status_code=200)
 def get_books_by_club_id(club_id: int, db: Session = Depends(get_db)):
@@ -99,7 +100,24 @@ def get_book_votes(club_id: int, book_id: int, db: Session = Depends(get_db)):
 @app.delete("/clubs/{club_id}/books/{book_id}/votes", status_code=204)
 def delete_book_votes(club_id: int, book_id: int, db: Session = Depends(get_db)):
     return crud.delete_votes_by_book_id(db=db, book_id=book_id, club_id=club_id)    
-    
+
+#FUnciones faltantes GET progres y PUT update_progress
+@app.get("/clubs/{clubId}/books/{bookId}/progress", status_code=200)
+def get_reading_progress(clubId: int, bookId: int, db: Session = Depends(get_db)):
+    progress = crud.get_book_progress(db=db, book_id=bookId, club_id=clubId)
+    if progress is None:
+        raise HTTPException(status_code=404, detail="Libro o progreso no encontrado")
+    return {"progress": progress}
+
+@app.put("/clubs/{clubId}/books/{bookId}/progress", response_model=schemas.BookOut, status_code=200)
+def update_reading_progress(clubId: int, bookId: int, progress: int, db: Session = Depends(get_db)):
+    updated_book = crud.update_book_progress(db=db, book_id=bookId, club_id=clubId, progress=progress)
+    if not updated_book:
+        raise HTTPException(status_code=404, detail="No se pudo actualizar el progreso: Libro no encontrado")
+    return updated_book
+
+
+
 
 # REVIEWS
 @app.get("/clubs/{club_id}/books/{book_id}/reviews", response_model=list[schemas.ReviewOut], status_code=200)
@@ -134,6 +152,7 @@ def delete_review(review_id: int, db: Session = Depends(get_db)):
     return
 
 
+# MEETINGS
 @app.get("/clubs/{club_id}/meetings", status_code=200)
 def meetings(club_id: int, db: Session = Depends(get_db)):
     return crud.get_meetings_by_club_id(db=db, club_id=club_id)
@@ -162,3 +181,14 @@ def cancel_meeting(club_id: int, meeting_id: int, db: Session = Depends(get_db))
             detail="La reunión no existe o no pertenece a este club"
         )
     return #204 estado indica proceso exitoso pero no hay contenido de vuelta 
+
+# MEETINGS ATENDANCE
+@app.put("/clubs/{club_id}/meetings/{meeting_id}/attendance",response_model=schemas.MeetingAttendanceOut)
+def confirm_attendance(club_id: int, meeting_id: int, attendance_in: schemas.MeetingAttendanceCreate, db: Session = Depends(get_db)):
+    return {
+        "userId": "usr_abc123",
+        "meetingId": f"mtg_{meeting_id}",
+        "status": attendance_in.status,
+        "note": attendance_in.note,
+    }
+
