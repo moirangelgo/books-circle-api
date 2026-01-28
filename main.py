@@ -399,6 +399,7 @@ def register_user(payload: RegisterInput):
         "token": token,
     }
 
+<<<<<<< Updated upstream
 
 # Endpoint de login de usuarios (Auth) implementado junto con @osdroix
 @app.post("/auth/login", tags=["Auth"])
@@ -604,3 +605,18 @@ def delete_review(reviewId: int):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+=======
+@app.get("/clubs", response_model=list[schemas.ClubOut], status_code=201)
+def clubs(db: Session = Depends(get_db)):
+    clubs = crud.get_clubs(db=db)
+    return clubs
+
+@app.get("/clubs/{club_id}/meetings/{meeting_id}", response_model=schemas.MeetingDetail)
+def get_meeting_details(club_id: int, meeting_id: int, db: Session = Depends(get_db)):
+    db_meeting = crud.get_meeting(db, meeting_id=meeting_id)
+    if db_meeting is None:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    if db_meeting.club_id != club_id:
+        raise HTTPException(status_code=404, detail="Meeting not found in this club")
+    return db_meeting
+>>>>>>> Stashed changes
