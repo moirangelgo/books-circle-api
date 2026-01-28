@@ -115,6 +115,23 @@ def delete_votes_by_book_id(db: Session, book_id: int, club_id: int):
     db.refresh(book)
     return book.votes
 
+#Funcioens faltantes Books 
+def get_book_progress(db: Session, book_id: int, club_id: int):
+    book = db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
+    if book:
+        return book.progress
+    return None
+
+def update_book_progress(db: Session, book_id: int, club_id: int, progress: int):
+    book = db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
+    if book:
+        book.progress = max(0, min(100, progress))
+        db.commit()
+        db.refresh(book)
+        return book
+    return None
+
+
 
 # =========REVIEWS ============
 def get_reviews_by_book_id(db: Session, book_id: int, club_id: int):
@@ -202,5 +219,31 @@ def create_meeting(db: Session, meeting: schemas.MeetingCreate):
 
     except Exception as e:
         return None
+    
+
+# =========MEETINGS ATTENDANCE============
+
+
+
+
+# = = = = = Implementación DELETE CLUBS = = = = = 
+def delete_meeting(db: Session, club_id: int, meeting_id: int):
+    try:
+        db_meeting = db.query(models.Meeting).filter(
+            models.Meeting.id == meeting_id,
+            models.Meeting.club_id == club_id
+        ).first()
+
+        if db_meeting:
+            db.delete(db_meeting)
+            db.commit()
+            return db_meeting  # para confirmar
+        return None 
+    
+    except Exception as e:
+        return None # En caso no exista
+
+
+
 
 

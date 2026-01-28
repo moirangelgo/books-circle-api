@@ -123,7 +123,20 @@ class MeetingOut(BaseModel):
     attendeeCount: int | None = None
     status: str | None = None  # Próxima | Vencida | Cancelada
     isVirtual: bool | None = None
-    virtualMeetingUrl: str| str = None    
+    virtualMeetingUrl: str| str = None
+
+
+class MeetingAttendanceCreate(BaseModel):
+    status: str | None = None  # Asistiré | Tal Vez | Rechazo
+    note: str| str = None
+
+
+class MeetingAttendanceOut(BaseModel):
+    id: str | str = None
+    status: str | None = None  # Asistiré | Tal Vez | Rechazo
+    note: str| str = None
+
+    
 
 
 class Config:
