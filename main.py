@@ -152,6 +152,7 @@ def delete_review(review_id: int, db: Session = Depends(get_db)):
     return
 
 
+# MEETINGS
 @app.get("/clubs/{club_id}/meetings", status_code=200)
 def meetings(club_id: int, db: Session = Depends(get_db)):
     return crud.get_meetings_by_club_id(db=db, club_id=club_id)
@@ -168,4 +169,15 @@ def meetings(meeting : schemas.MeetingCreate, db: Session = Depends(get_db)):
     if not meeting:
         raise HTTPException(status_code=400, detail="No se pudo crear")
     return
+
+
+# MEETINGS ATENDANCE
+@app.put("/clubs/{club_id}/meetings/{meeting_id}/attendance",response_model=schemas.MeetingAttendanceOut)
+def confirm_attendance(club_id: int, meeting_id: int, attendance_in: schemas.MeetingAttendanceCreate, db: Session = Depends(get_db)):
+    return {
+        "userId": "usr_abc123",
+        "meetingId": f"mtg_{meeting_id}",
+        "status": attendance_in.status,
+        "note": attendance_in.note,
+    }
 

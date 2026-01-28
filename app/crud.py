@@ -219,5 +219,11 @@ def create_meeting(db: Session, meeting: schemas.MeetingCreate):
 
     except Exception as e:
         return None
+    
+
+# =========MEETINGS ATTENDANCE============
+
+
+
 
 
