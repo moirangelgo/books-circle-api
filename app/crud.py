@@ -115,6 +115,23 @@ def delete_votes_by_book_id(db: Session, book_id: int, club_id: int):
     db.refresh(book)
     return book.votes
 
+#Funcioens faltantes Books 
+def get_book_progress(db: Session, book_id: int, club_id: int):
+    book = db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
+    if book:
+        return book.progress
+    return None
+
+def update_book_progress(db: Session, book_id: int, club_id: int, progress: int):
+    book = db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
+    if book:
+        book.progress = max(0, min(100, progress))
+        db.commit()
+        db.refresh(book)
+        return book
+    return None
+
+
 
 # =========REVIEWS ============
 def get_reviews_by_book_id(db: Session, book_id: int, club_id: int):
