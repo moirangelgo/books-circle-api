@@ -2,6 +2,7 @@
 from sqlalchemy.orm import Session
 from . import models, schemas
 from app.core import security
+from datetime import datetime
 
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
@@ -198,12 +199,18 @@ def get_meetings_by_id(db: Session, meeting_id: int):
 
 def create_meeting(db: Session, meeting: schemas.MeetingCreate):
     try:
+        scheduled_at = meeting.scheduledAt
+        if isinstance(scheduled_at, str):
+            try:
+                scheduled_at = datetime.fromisoformat(scheduled_at)
+            except ValueError:
+                pass
+
         db_meeting = models.Meeting(
-            id = meeting.id,
             book_id = meeting.bookId,
             club_id = meeting.clubId,
             book_title = meeting.bookTitle,
-            scheduled_at = meeting.scheduledAt,
+            scheduled_at = scheduled_at,
             duration = meeting.duration,
             location = meeting.location,
             locationUrl = meeting.locationUrl,
