@@ -1,18 +1,21 @@
 # app/crud.py
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from . import models, schemas
 from app.core import security
 from datetime import datetime
 
-def get_user_by_email(db: Session, email: str):
-    return db.query(models.User).filter(models.User.email == email).first()
+async def get_user_by_email(db: AsyncSession, email: str):
+    result = await db.execute(select(models.User).filter(models.User.email == email))
+    return result.scalars().first()
 
 
-def get_user_by_username(db: Session, username: str):
-    return db.query(models.User).filter(models.User.username == username).first()
+async def get_user_by_username(db: AsyncSession, username: str):
+    result = await db.execute(select(models.User).filter(models.User.username == username))
+    return result.scalars().first()
 
 
-def create_user(db: Session, user: schemas.UserCreate):
+async def create_user(db: AsyncSession, user: schemas.UserCreate):
     hashed_password = security.get_password_hash(user.password)
     db_user = models.User(
         email=user.email,
@@ -21,17 +24,17 @@ def create_user(db: Session, user: schemas.UserCreate):
         full_name=user.fullName
     )
     db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
+    await db.commit()
+    await db.refresh(db_user)
     return db_user
 
 
-def get_clubs(db: Session):
-    # SELECT * FROM CLUBES
-    return db.query(models.Club).all()
+async def get_clubs(db: AsyncSession):
+    result = await db.execute(select(models.Club))
+    return result.scalars().all()
 
 
-def create_club(db: Session, club: schemas.ClubCreate):
+async def create_club(db: AsyncSession, club: schemas.ClubCreate):
     db_club = models.Club(
         name=club.name,
         description=club.description,
@@ -39,13 +42,14 @@ def create_club(db: Session, club: schemas.ClubCreate):
         members=club.members
     )
     db.add(db_club)
-    db.commit()
-    db.refresh(db_club)
+    await db.commit()
+    await db.refresh(db_club)
     return db_club
 
 
-def update_club(db: Session, club: schemas.ClubCreate, club_id: int):
-    db_club = db.query(models.Club).filter(models.Club.id == club_id).first()
+async def update_club(db: AsyncSession, club: schemas.ClubCreate, club_id: int):
+    result = await db.execute(select(models.Club).filter(models.Club.id == club_id))
+    db_club = result.scalars().first()
     if not db_club:
         return None
     db_club.name = club.name
@@ -53,31 +57,33 @@ def update_club(db: Session, club: schemas.ClubCreate, club_id: int):
     db_club.favorite_genre = club.favorite_genre
     db_club.members = club.members
     db.add(db_club)
-    db.commit()
-    db.refresh(db_club)
+    await db.commit()
+    await db.refresh(db_club)
     return db_club
 
 
-def get_club_by_id(db: Session, club_id: int):
-    return db.query(models.Club).filter(models.Club.id == club_id).first()
+async def get_club_by_id(db: AsyncSession, club_id: int):
+    result = await db.execute(select(models.Club).filter(models.Club.id == club_id))
+    return result.scalars().first()
 
 
-def delete_club(db: Session, club_id: int):
-    db_club = db.query(models.Club).filter(models.Club.id == club_id).first()
+async def delete_club(db: AsyncSession, club_id: int):
+    result = await db.execute(select(models.Club).filter(models.Club.id == club_id))
+    db_club = result.scalars().first()
     if not db_club:
         return None
-    db.delete(db_club)
-    db.commit()
+    await db.delete(db_club)
+    await db.commit()
     return db_club
 
 
 ## BOOKS
-def get_books_by_club_id(db: Session, club_id: int):
-    # SELECT * FROM LIBROS WHERE CLUB_ID = club_id
-    return db.query(models.Book).filter(models.Book.club_id == club_id).all()
+async def get_books_by_club_id(db: AsyncSession, club_id: int):
+    result = await db.execute(select(models.Book).filter(models.Book.club_id == club_id))
+    return result.scalars().all()
 
 
-def create_book(db: Session, book: schemas.BookCreate):
+async def create_book(db: AsyncSession, book: schemas.BookCreate):
     try:
         db_book = models.Book(
             club_id=book.club_id,
@@ -87,61 +93,73 @@ def create_book(db: Session, book: schemas.BookCreate):
             progress=book.progress
         )
         db.add(db_book) 
-        db.commit()
-        db.refresh(db_book)
+        await db.commit()
+        await db.refresh(db_book)
         return db_book
 
     except Exception as e:
         return None
 
 
-def get_book_by_id(db: Session, book_id: int, club_id: int):
-    return db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
+async def get_book_by_id(db: AsyncSession, book_id: int, club_id: int):
+    result = await db.execute(select(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id))
+    return result.scalars().first()
 
 
-def add_votes_by_book_id(db: Session, book_id: int, club_id: int):
-    book = db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
+async def add_votes_by_book_id(db: AsyncSession, book_id: int, club_id: int):
+    result = await db.execute(select(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id))
+    book = result.scalars().first()
+    if not book:
+        return None
     votes = book.votes
     book.votes = votes + 1
     db.add(book)
-    db.commit()
-    db.refresh(book)
+    await db.commit()
+    await db.refresh(book)
     return book.votes
 
 
-def delete_votes_by_book_id(db: Session, book_id: int, club_id: int):
-    book = db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
+async def delete_votes_by_book_id(db: AsyncSession, book_id: int, club_id: int):
+    result = await db.execute(select(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id))
+    book = result.scalars().first()
+    if not book:
+        return None
     votes = book.votes
     book.votes = votes - 1
     db.add(book)
-    db.commit()
-    db.refresh(book)
+    await db.commit()
+    await db.refresh(book)
     return book.votes
 
+
 #Funcioens faltantes Books 
-def get_book_progress(db: Session, book_id: int, club_id: int):
-    book = db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
+async def get_book_progress(db: AsyncSession, book_id: int, club_id: int):
+    result = await db.execute(select(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id))
+    book = result.scalars().first()
     if book:
         return book.progress
     return None
 
-def update_book_progress(db: Session, book_id: int, club_id: int, progress: int):
-    book = db.query(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id).first()
+
+async def update_book_progress(db: AsyncSession, book_id: int, club_id: int, progress: int):
+    result = await db.execute(select(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id))
+    book = result.scalars().first()
     if book:
         book.progress = max(0, min(100, progress))
-        db.commit()
-        db.refresh(book)
+        await db.commit()
+        await db.refresh(book)
         return book
     return None
 
 
 
 # =========REVIEWS ============
-def get_reviews_by_book_id(db: Session, book_id: int, club_id: int):
-    return db.query(models.Review).filter(models.Review.book_id == book_id, models.Review.club_id == club_id).all()
+async def get_reviews_by_book_id(db: AsyncSession, book_id: int, club_id: int):
+    result = await db.execute(select(models.Review).filter(models.Review.book_id == book_id, models.Review.club_id == club_id))
+    return result.scalars().all()
 
 
-def create_review(db: Session, review: schemas.ReviewCreate):
+async def create_review(db: AsyncSession, review: schemas.ReviewCreate):
     try:
         db_review = models.Review(
             club_id=review.club_id,
@@ -151,53 +169,58 @@ def create_review(db: Session, review: schemas.ReviewCreate):
             comment=review.comment
         )
         db.add(db_review) 
-        db.commit()
-        db.refresh(db_review)
+        await db.commit()
+        await db.refresh(db_review)
         return db_review
 
     except Exception as e:
         return None
 
 
-def update_review(db: Session, review: schemas.ReviewUpdate):
+async def update_review(db: AsyncSession, review: schemas.ReviewUpdate):
     try:
-        db_review = db.query(models.Review).filter(models.Review.id == review.id, models.Review.club_id == review.club_id, models.Review.book_id == review.book_id).first()
+        result = await db.execute(select(models.Review).filter(models.Review.id == review.id, models.Review.club_id == review.club_id, models.Review.book_id == review.book_id))
+        db_review = result.scalars().first()
         if not db_review:
             return None
 
         db_review.rating = review.rating
         db_review.comment = review.comment
         db.add(db_review) 
-        db.commit()
-        db.refresh(db_review)
+        await db.commit()
+        await db.refresh(db_review)
         return db_review
 
     except Exception as e:
         return None
 
 
-def delete_review(db: Session, review_id: int):
+async def delete_review(db: AsyncSession, review_id: int):
     try:
-        db_review = db.query(models.Review).filter(models.Review.id == review_id).first()
+        result = await db.execute(select(models.Review).filter(models.Review.id == review_id))
+        db_review = result.scalars().first()
         if not db_review:
             return None
-        db.delete(db_review)
-        db.commit()
+        await db.delete(db_review)
+        await db.commit()
         return db_review
 
     except Exception as e:
         return None
 
+
 # =========MEETINGS ============
-def get_meetings_by_club_id(db: Session, club_id: int):
-    return db.query(models.Meeting).filter(models.Meeting.club_id == club_id).all()
+async def get_meetings_by_club_id(db: AsyncSession, club_id: int):
+    result = await db.execute(select(models.Meeting).filter(models.Meeting.club_id == club_id))
+    return result.scalars().all()
 
 
-def get_meetings_by_id(db: Session, meeting_id: int):
-    return db.query(models.Meeting).filter(models.Meeting.id == meeting_id).first()
+async def get_meetings_by_id(db: AsyncSession, meeting_id: int):
+    result = await db.execute(select(models.Meeting).filter(models.Meeting.id == meeting_id))
+    return result.scalars().first()
 
 
-def create_meeting(db: Session, meeting: schemas.MeetingCreate):
+async def create_meeting(db: AsyncSession, meeting: schemas.MeetingCreate):
     try:
         scheduled_at = meeting.scheduledAt
         if isinstance(scheduled_at, str):
@@ -222,24 +245,25 @@ def create_meeting(db: Session, meeting: schemas.MeetingCreate):
             virtualMeetingUrl  = meeting.virtualMeetingUrl,
         )
         db.add(db_meeting) 
-        db.commit()
-        db.refresh(db_meeting)
+        await db.commit()
+        await db.refresh(db_meeting)
         return db_meeting
 
     except Exception as e:
         return None
     
 # = = = = = Implementación DELETE CLUBS = = = = = 
-def delete_meeting(db: Session, club_id: int, meeting_id: int):
+async def delete_meeting(db: AsyncSession, club_id: int, meeting_id: int):
     try:
-        db_meeting = db.query(models.Meeting).filter(
+        result = await db.execute(select(models.Meeting).filter(
             models.Meeting.id == meeting_id,
             models.Meeting.club_id == club_id
-        ).first()
+        ))
+        db_meeting = result.scalars().first()
 
         if db_meeting:
-            db.delete(db_meeting)
-            db.commit()
+            await db.delete(db_meeting)
+            await db.commit()
             return db_meeting  # para confirmar
         return None 
     
@@ -248,7 +272,7 @@ def delete_meeting(db: Session, club_id: int, meeting_id: int):
 
 # =========MEETINGS ATTENDANCE============
 
-def create_attendance_meeting(db: Session, meeting_id, meeting: schemas.MeetingAttendanceCreate):
+async def create_attendance_meeting(db: AsyncSession, meeting_id, meeting: schemas.MeetingAttendanceCreate):
     try:
         db_attendance = models.MeetingAttendance(
             meeting_id = meeting_id,
@@ -257,8 +281,8 @@ def create_attendance_meeting(db: Session, meeting_id, meeting: schemas.MeetingA
         )
 
         db.add(db_attendance) 
-        db.commit()
-        db.refresh(db_attendance)
+        await db.commit()
+        await db.refresh(db_attendance)
         return db_attendance
 
     except Exception as e:
