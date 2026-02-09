@@ -9,23 +9,27 @@ from app import crud, models, schemas
 # Setup in-memory DB for testing
 SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-engine = create_async_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession, expire_on_commit=False)
-
 @pytest.fixture(scope="function")
 async def db():
+    # Create engine and session local to this loop/test
+    engine = create_async_engine(
+        SQLALCHEMY_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession, expire_on_commit=False)
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
     async with TestingSessionLocal() as session:
         yield session
     
+    # Verify cleanup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    
+    await engine.dispose()
 
 @pytest.mark.asyncio
 async def test_create_user(db):

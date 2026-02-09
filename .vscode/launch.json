@@ -14,7 +14,12 @@
       "type": "debugpy",
       "request": "launch",
       "module": "alembic",
-      "args": ["revision", "--autogenerate", "-m", "${input:migrationName}"],
+      "args": [
+        "revision",
+        "--autogenerate",
+        "-m",
+        "${input:migrationName}"
+      ],
       "console": "integratedTerminal",
       "justMyCode": false
     },
@@ -23,7 +28,10 @@
       "type": "debugpy",
       "request": "launch",
       "module": "alembic",
-      "args": ["upgrade", "head"],
+      "args": [
+        "upgrade",
+        "head"
+      ],
       "console": "integratedTerminal"
     },
     {
@@ -31,9 +39,23 @@
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
-      "args": ["main:app", "--reload"],
+      "args": [
+        "main:app",
+        "--reload"
+      ],
       "jinja": true,
       "console": "integratedTerminal"
+    },
+    {
+      "name": "Python: Pytest",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "${file}"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false
     }
   ]
 }
