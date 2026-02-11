@@ -1,10 +1,14 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from app import models, schemas, database, crud
 from app.core import security
 from jose import JWTError, jwt
 from contextlib import asynccontextmanager
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from app.core.rate_limit import limiter
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -13,6 +17,9 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="BookCircle API", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # models.Base.metadata.create_all(bind=database.engine) # Removed in favor of lifespan
 
@@ -22,6 +29,11 @@ async def get_db():
             yield db
         finally:
             await db.close()
+
+@app.get("/health", status_code=200)
+@limiter.limit("5/minute")
+async def health(request: Request):
+    return {"status": "ok"}
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -44,7 +56,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     return user
 
 @app.post("/token", response_model=schemas.Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     user = await crud.get_user_by_username(db, username=form_data.username)
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -58,7 +71,9 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/auth/register", response_model=schemas.UserOut, status_code=201)
+@limiter.limit("5/minute")
 async def register_user(
+                    request: Request,
                     user_in: schemas.UserCreate, 
                     db: AsyncSession = Depends(get_db)
                 ):
@@ -76,7 +91,8 @@ async def register_user(
 
 # CLUBS
 @app.get("/clubs", response_model=list[schemas.ClubOut], status_code=200)
-async def clubs(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+@limiter.limit("100/minute")
+async def clubs(request: Request, skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     clubs = await crud.get_clubs(db=db, skip=skip, limit=limit)
     return clubs
 
@@ -113,7 +129,8 @@ async def delete_club(club_id: int, db: AsyncSession = Depends(get_db), current_
 ### Endpoints: B o o k s ###
 
 @app.get("/clubs/{club_id}/books", response_model=list[schemas.BookOut], status_code=200)
-async def get_books_by_club_id(club_id: int, skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+@limiter.limit("100/minute")
+async def get_books_by_club_id(request: Request, club_id: int, skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     books = await crud.get_books_by_club_id(db=db, club_id=club_id, skip=skip, limit=limit)
     if not books:
         raise HTTPException(status_code=404, detail="Libros no encontrados")
