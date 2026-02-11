@@ -29,8 +29,8 @@ async def create_user(db: AsyncSession, user: schemas.UserCreate):
     return db_user
 
 
-async def get_clubs(db: AsyncSession):
-    result = await db.execute(select(models.Club))
+async def get_clubs(db: AsyncSession, skip: int = 0, limit: int = 100):
+    result = await db.execute(select(models.Club).offset(skip).limit(limit))
     return result.scalars().all()
 
 
@@ -78,8 +78,8 @@ async def delete_club(db: AsyncSession, club_id: int):
 
 
 ## BOOKS
-async def get_books_by_club_id(db: AsyncSession, club_id: int):
-    result = await db.execute(select(models.Book).filter(models.Book.club_id == club_id))
+async def get_books_by_club_id(db: AsyncSession, club_id: int, skip: int = 0, limit: int = 100):
+    result = await db.execute(select(models.Book).filter(models.Book.club_id == club_id).offset(skip).limit(limit))
     return result.scalars().all()
 
 

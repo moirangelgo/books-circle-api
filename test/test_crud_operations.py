@@ -377,3 +377,53 @@ async def test_create_attendance_meeting(db):
     assert attendance.meeting_id == db_meeting.id
     assert attendance.user_id == db_user.id
     assert attendance.status == "SI"
+@pytest.mark.asyncio
+async def test_get_clubs_pagination(db):
+    # Create 5 clubs
+    for i in range(5):
+        club_in = schemas.ClubCreate(name=f"Club {i}", description=f"Desc {i}")
+        await crud.create_club(db, club_in)
+
+    # Test limit
+    clubs = await crud.get_clubs(db, limit=2)
+    assert len(clubs) == 2
+    assert clubs[0].name == "Club 0"
+    assert clubs[1].name == "Club 1"
+
+    # Test skip
+    clubs = await crud.get_clubs(db, skip=2, limit=2)
+    assert len(clubs) == 2
+    assert clubs[0].name == "Club 2"
+    assert clubs[1].name == "Club 3"
+
+    # Test skip and limit beyond range
+    clubs = await crud.get_clubs(db, skip=4, limit=10)
+    assert len(clubs) == 1
+    assert clubs[0].name == "Club 4"
+
+@pytest.mark.asyncio
+async def test_get_books_pagination(db):
+    club_in = schemas.ClubCreate(name="Club for Books", description="Desc")
+    db_club = await crud.create_club(db, club_in)
+
+    # Create 5 books
+    for i in range(5):
+        book_in = schemas.BookCreate(club_id=db_club.id, title=f"Book {i}", author=f"Author {i}")
+        await crud.create_book(db, book_in)
+
+    # Test limit
+    books = await crud.get_books_by_club_id(db, club_id=db_club.id, limit=2)
+    assert len(books) == 2
+    assert books[0].title == "Book 0"
+    assert books[1].title == "Book 1"
+
+    # Test skip
+    books = await crud.get_books_by_club_id(db, club_id=db_club.id, skip=2, limit=2)
+    assert len(books) == 2
+    assert books[0].title == "Book 2"
+    assert books[1].title == "Book 3"
+
+    # Test skip and limit beyond range
+    books = await crud.get_books_by_club_id(db, club_id=db_club.id, skip=4, limit=10)
+    assert len(books) == 1
+    assert books[0].title == "Book 4"

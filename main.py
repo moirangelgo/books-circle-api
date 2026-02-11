@@ -76,8 +76,8 @@ async def register_user(
 
 # CLUBS
 @app.get("/clubs", response_model=list[schemas.ClubOut], status_code=200)
-async def clubs(db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    clubs = await crud.get_clubs(db=db)
+async def clubs(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    clubs = await crud.get_clubs(db=db, skip=skip, limit=limit)
     return clubs
 
 
@@ -113,8 +113,8 @@ async def delete_club(club_id: int, db: AsyncSession = Depends(get_db), current_
 ### Endpoints: B o o k s ###
 
 @app.get("/clubs/{club_id}/books", response_model=list[schemas.BookOut], status_code=200)
-async def get_books_by_club_id(club_id: int, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    books = await crud.get_books_by_club_id(db=db, club_id=club_id)
+async def get_books_by_club_id(club_id: int, skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    books = await crud.get_books_by_club_id(db=db, club_id=club_id, skip=skip, limit=limit)
     if not books:
         raise HTTPException(status_code=404, detail="Libros no encontrados")
     return books
