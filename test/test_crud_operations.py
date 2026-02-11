@@ -5,6 +5,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base
 from app import crud, models, schemas
+from app.core.exceptions import ItemNotFound
 
 # Setup in-memory DB for testing
 SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -125,7 +126,8 @@ async def test_delete_club(db):
     db_club = await crud.create_club(db, club_in)
     deleted_club = await crud.delete_club(db, club_id=db_club.id)
     assert deleted_club.id == db_club.id
-    assert await crud.get_club_by_id(db, club_id=db_club.id) is None
+    with pytest.raises(ItemNotFound):
+        await crud.get_club_by_id(db, club_id=db_club.id)
 
 @pytest.mark.asyncio
 async def test_create_book(db):
@@ -356,7 +358,8 @@ async def test_delete_meeting(db):
     deleted_meeting = await crud.delete_meeting(db, club_id=db_club.id, meeting_id=db_meeting.id)
     assert deleted_meeting.id == db_meeting.id
     
-    assert await crud.get_meetings_by_id(db, meeting_id=db_meeting.id) is None
+    with pytest.raises(ItemNotFound):
+        await crud.get_meetings_by_id(db, meeting_id=db_meeting.id)
 
 @pytest.mark.asyncio
 async def test_create_attendance_meeting(db):

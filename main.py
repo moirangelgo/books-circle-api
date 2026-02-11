@@ -8,7 +8,10 @@ from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from slowapi.middleware import SlowAPIMiddleware
 from app.core.rate_limit import limiter
+from app.core.exceptions import ItemNotFound, ItemAlreadyExists, DatabaseError
+from fastapi.responses import JSONResponse
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,6 +23,27 @@ app = FastAPI(title="BookCircle API", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
+
+@app.exception_handler(ItemNotFound)
+async def item_not_found_exception_handler(request: Request, exc: ItemNotFound):
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": exc.message},
+    )
+
+@app.exception_handler(ItemAlreadyExists)
+async def item_already_exists_exception_handler(request: Request, exc: ItemAlreadyExists):
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": exc.message},
+    )
+
+@app.exception_handler(DatabaseError)
+async def database_error_exception_handler(request: Request, exc: DatabaseError):
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": exc.message},
+    )
 
 # models.Base.metadata.create_all(bind=database.engine) # Removed in favor of lifespan
 
@@ -106,24 +130,18 @@ async def create_club(club_in: schemas.ClubCreate, db: AsyncSession = Depends(ge
 @app.put("/clubs/{club_id}", response_model=schemas.ClubOut, status_code=200)
 async def update_club(club_id: int, club_in: schemas.ClubCreate, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     new_club = await crud.update_club(db=db, club=club_in, club_id=club_id)
-    if not new_club:
-        raise HTTPException(status_code=404, detail="Club no encontrado")
     return new_club
 
 
 @app.get("/clubs/{club_id}", response_model=schemas.ClubOut, status_code=200)
 async def get_club(club_id: int, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     club = await crud.get_club_by_id(db=db, club_id=club_id)
-    if not club:
-        raise HTTPException(status_code=404, detail="Club no encontrado")
     return club
 
 
 @app.delete("/clubs/{club_id}", status_code=204)
 async def delete_club(club_id: int, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    club = await crud.delete_club(db=db, club_id=club_id)
-    if not club:
-        raise HTTPException(status_code=404, detail="Club no encontrado")
+    await crud.delete_club(db=db, club_id=club_id)
     return
 
 ### Endpoints: B o o k s ###
@@ -132,24 +150,18 @@ async def delete_club(club_id: int, db: AsyncSession = Depends(get_db), current_
 @limiter.limit("100/minute")
 async def get_books_by_club_id(request: Request, club_id: int, skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     books = await crud.get_books_by_club_id(db=db, club_id=club_id, skip=skip, limit=limit)
-    if not books:
-        raise HTTPException(status_code=404, detail="Libros no encontrados")
     return books
 
 
 @app.post("/clubs/{club_id}/books", response_model=schemas.BookOut, status_code=201)
 async def create_book(club_id: int, book_in: schemas.BookCreate, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     new_book = await crud.create_book(db=db, book=book_in)
-    if not new_book:
-        raise HTTPException(status_code=404, detail="Libro no creado")
     return new_book
 
 
 @app.get("/clubs/{club_id}/books/{book_id}", response_model=schemas.BookOut, status_code=200)
 async def get_book_details(club_id: int, book_id: int, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     book = await crud.get_book_by_id(db=db, book_id=book_id, club_id=club_id)
-    if not book:
-        raise HTTPException(status_code=404, detail="Libro no encontrado")
     return book
 
 
@@ -166,15 +178,11 @@ async def delete_book_votes(club_id: int, book_id: int, db: AsyncSession = Depen
 @app.get("/clubs/{clubId}/books/{bookId}/progress", status_code=200)
 async def get_reading_progress(clubId: int, bookId: int, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     progress = await crud.get_book_progress(db=db, book_id=bookId, club_id=clubId)
-    if progress is None:
-        raise HTTPException(status_code=404, detail="Libro o progreso no encontrado")
     return {"progress": progress}
 
 @app.put("/clubs/{clubId}/books/{bookId}/progress", response_model=schemas.BookOut, status_code=200)
 async def update_reading_progress(clubId: int, bookId: int, progress: int, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     updated_book = await crud.update_book_progress(db=db, book_id=bookId, club_id=clubId, progress=progress)
-    if not updated_book:
-        raise HTTPException(status_code=404, detail="No se pudo actualizar el progreso: Libro no encontrado")
     return updated_book
 
 
@@ -184,32 +192,24 @@ async def update_reading_progress(clubId: int, bookId: int, progress: int, db: A
 @app.get("/clubs/{club_id}/books/{book_id}/reviews", response_model=list[schemas.ReviewOut], status_code=200)
 async def get_reviews_by_book_id(club_id: int, book_id: int, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     reviews = await crud.get_reviews_by_book_id(db=db, book_id=book_id, club_id=club_id)
-    if not reviews:
-        raise HTTPException(status_code=404, detail="Reviews no encontrados")
     return reviews
 
 
 @app.post("/clubs/{club_id}/books/{book_id}/reviews", response_model=schemas.ReviewOut, status_code=201)
 async def create_review(review_in: schemas.ReviewCreate, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     new_review = await crud.create_review(db=db, review=review_in)
-    if not new_review:
-        raise HTTPException(status_code=404, detail="Review no creado")
     return new_review
 
 
 @app.put("/clubs/{club_id}/books/{book_id}/reviews/{review_id}", response_model=schemas.ReviewOut, status_code=200)
 async def update_review(review_id: int, review_in: schemas.ReviewUpdate, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     updated_review = await crud.update_review(db=db, review=review_in)
-    if not updated_review:
-        raise HTTPException(status_code=404, detail="Review no actualizado")
     return updated_review
 
 
 @app.delete("/clubs/{club_id}/books/{book_id}/reviews/{review_id}", status_code=204)
 async def delete_review(review_id: int, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    deleted_review = await crud.delete_review(db=db, review_id=review_id)
-    if not deleted_review:
-        raise HTTPException(status_code=404, detail="Review no eliminado")
+    await crud.delete_review(db=db, review_id=review_id)
     return
 
 
@@ -227,26 +227,17 @@ async def meetings(club_id: int, meeting_id:int, db: AsyncSession = Depends(get_
 @app.post("/clubs/{club_id}/meetings", status_code=201)
 async def meetings(meeting : schemas.MeetingCreate, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     meeting = await crud.create_meeting(db=db, meeting=meeting)
-    if not meeting:
-        raise HTTPException(status_code=400, detail="No se pudo crear")
     return
 
 # = = = = = DELETE
 @app.delete("/clubs/{club_id}/meetings/{meeting_id}", status_code=204)
 async def cancel_meeting(club_id: int, meeting_id: int, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
 
-    deleted_meeting = await crud.delete_meeting(db=db, club_id=club_id, meeting_id=meeting_id)
-    
-    if not deleted_meeting:
-        raise HTTPException(status_code=404, 
-            detail="La reunión no existe o no pertenece a este club"
-        )
+    await crud.delete_meeting(db=db, club_id=club_id, meeting_id=meeting_id)
     return #204 estado indica proceso exitoso pero no hay contenido de vuelta 
 
 # MEETINGS ATENDANCE
 @app.post("/clubs/{club_id}/meetings/{meeting_id}/attendance", status_code=201)
 async def confirm_attendance(club_id: int, meeting_id: int, attendance_in: schemas.MeetingAttendanceCreate, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     attendance = await crud.create_attendance_meeting(db, meeting_id, attendance_in)    
-    if not attendance:
-        raise HTTPException(status_code=400, detail="No se pudo crear")
     return

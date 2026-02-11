@@ -3,7 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from . import models, schemas
 from app.core import security
+from app.core.exceptions import ItemNotFound, DatabaseError, ItemAlreadyExists
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 
 async def get_user_by_email(db: AsyncSession, email: str):
     result = await db.execute(select(models.User).filter(models.User.email == email))
@@ -51,7 +53,7 @@ async def update_club(db: AsyncSession, club: schemas.ClubCreate, club_id: int):
     result = await db.execute(select(models.Club).filter(models.Club.id == club_id))
     db_club = result.scalars().first()
     if not db_club:
-        return None
+        raise ItemNotFound(f"Club with id {club_id} not found")
     db_club.name = club.name
     db_club.description = club.description
     db_club.favorite_genre = club.favorite_genre
@@ -64,14 +66,17 @@ async def update_club(db: AsyncSession, club: schemas.ClubCreate, club_id: int):
 
 async def get_club_by_id(db: AsyncSession, club_id: int):
     result = await db.execute(select(models.Club).filter(models.Club.id == club_id))
-    return result.scalars().first()
+    club = result.scalars().first()
+    if not club:
+        raise ItemNotFound(f"Club with id {club_id} not found")
+    return club
 
 
 async def delete_club(db: AsyncSession, club_id: int):
     result = await db.execute(select(models.Club).filter(models.Club.id == club_id))
     db_club = result.scalars().first()
     if not db_club:
-        return None
+        raise ItemNotFound(f"Club with id {club_id} not found")
     await db.delete(db_club)
     await db.commit()
     return db_club
@@ -97,20 +102,26 @@ async def create_book(db: AsyncSession, book: schemas.BookCreate):
         await db.refresh(db_book)
         return db_book
 
+
+    except IntegrityError:
+        raise DatabaseError("Database integrity error")
     except Exception as e:
-        return None
+        raise DatabaseError(f"An error occurred: {str(e)}")
 
 
 async def get_book_by_id(db: AsyncSession, book_id: int, club_id: int):
     result = await db.execute(select(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id))
-    return result.scalars().first()
+    book = result.scalars().first()
+    if not book:
+        raise ItemNotFound(f"Book with id {book_id} not found in club {club_id}")
+    return book
 
 
 async def add_votes_by_book_id(db: AsyncSession, book_id: int, club_id: int):
     result = await db.execute(select(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id))
     book = result.scalars().first()
     if not book:
-        return None
+        raise ItemNotFound(f"Book with id {book_id} not found in club {club_id}")
     votes = book.votes
     book.votes = votes + 1
     db.add(book)
@@ -123,7 +134,7 @@ async def delete_votes_by_book_id(db: AsyncSession, book_id: int, club_id: int):
     result = await db.execute(select(models.Book).filter(models.Book.id == book_id, models.Book.club_id == club_id))
     book = result.scalars().first()
     if not book:
-        return None
+        raise ItemNotFound(f"Book with id {book_id} not found in club {club_id}")
     votes = book.votes
     book.votes = votes - 1
     db.add(book)
@@ -138,7 +149,7 @@ async def get_book_progress(db: AsyncSession, book_id: int, club_id: int):
     book = result.scalars().first()
     if book:
         return book.progress
-    return None
+    raise ItemNotFound(f"Book with id {book_id} not found in club {club_id}")
 
 
 async def update_book_progress(db: AsyncSession, book_id: int, club_id: int, progress: int):
@@ -149,7 +160,7 @@ async def update_book_progress(db: AsyncSession, book_id: int, club_id: int, pro
         await db.commit()
         await db.refresh(book)
         return book
-    return None
+    raise ItemNotFound(f"Book with id {book_id} not found in club {club_id}")
 
 
 
@@ -174,7 +185,7 @@ async def create_review(db: AsyncSession, review: schemas.ReviewCreate):
         return db_review
 
     except Exception as e:
-        return None
+        raise DatabaseError(f"An error occurred: {str(e)}")
 
 
 async def update_review(db: AsyncSession, review: schemas.ReviewUpdate):
@@ -182,7 +193,7 @@ async def update_review(db: AsyncSession, review: schemas.ReviewUpdate):
         result = await db.execute(select(models.Review).filter(models.Review.id == review.id, models.Review.club_id == review.club_id, models.Review.book_id == review.book_id))
         db_review = result.scalars().first()
         if not db_review:
-            return None
+            raise ItemNotFound(f"Review not found")
 
         db_review.rating = review.rating
         db_review.comment = review.comment
@@ -192,7 +203,7 @@ async def update_review(db: AsyncSession, review: schemas.ReviewUpdate):
         return db_review
 
     except Exception as e:
-        return None
+        raise DatabaseError(f"An error occurred: {str(e)}")
 
 
 async def delete_review(db: AsyncSession, review_id: int):
@@ -200,13 +211,15 @@ async def delete_review(db: AsyncSession, review_id: int):
         result = await db.execute(select(models.Review).filter(models.Review.id == review_id))
         db_review = result.scalars().first()
         if not db_review:
-            return None
+            raise ItemNotFound(f"Review with id {review_id} not found")
         await db.delete(db_review)
         await db.commit()
         return db_review
 
+    except ItemNotFound:
+        raise
     except Exception as e:
-        return None
+        raise DatabaseError(f"An error occurred: {str(e)}")
 
 
 # =========MEETINGS ============
@@ -217,7 +230,10 @@ async def get_meetings_by_club_id(db: AsyncSession, club_id: int):
 
 async def get_meetings_by_id(db: AsyncSession, meeting_id: int):
     result = await db.execute(select(models.Meeting).filter(models.Meeting.id == meeting_id))
-    return result.scalars().first()
+    meeting = result.scalars().first()
+    if not meeting:
+        raise ItemNotFound(f"Meeting with id {meeting_id} not found")
+    return meeting
 
 
 async def create_meeting(db: AsyncSession, meeting: schemas.MeetingCreate):
@@ -250,7 +266,7 @@ async def create_meeting(db: AsyncSession, meeting: schemas.MeetingCreate):
         return db_meeting
 
     except Exception as e:
-        return None
+        raise DatabaseError(f"An error occurred: {str(e)}")
     
 # = = = = = Implementación DELETE CLUBS = = = = = 
 async def delete_meeting(db: AsyncSession, club_id: int, meeting_id: int):
@@ -265,10 +281,12 @@ async def delete_meeting(db: AsyncSession, club_id: int, meeting_id: int):
             await db.delete(db_meeting)
             await db.commit()
             return db_meeting  # para confirmar
-        return None 
+        raise ItemNotFound(f"Meeting with id {meeting_id} not found in club {club_id}") 
     
+    except ItemNotFound:
+        raise
     except Exception as e:
-        return None # En caso no exista
+        raise DatabaseError(f"An error occurred: {str(e)}")
 
 # =========MEETINGS ATTENDANCE============
 
@@ -286,4 +304,4 @@ async def create_attendance_meeting(db: AsyncSession, meeting_id, meeting: schem
         return db_attendance
 
     except Exception as e:
-        return None
+        raise DatabaseError(f"An error occurred: {str(e)}")
