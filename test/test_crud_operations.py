@@ -380,6 +380,7 @@ async def test_create_attendance_meeting(db):
     assert attendance.meeting_id == db_meeting.id
     assert attendance.user_id == db_user.id
     assert attendance.status == "SI"
+
 @pytest.mark.asyncio
 async def test_get_clubs_pagination(db):
     # Create 5 clubs

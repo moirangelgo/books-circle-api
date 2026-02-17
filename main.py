@@ -144,7 +144,7 @@ async def delete_club(club_id: int, db: AsyncSession = Depends(get_db), current_
     await crud.delete_club(db=db, club_id=club_id)
     return
 
-### Endpoints: B o o k s ###
+
 
 @app.get("/clubs/{club_id}/books", response_model=list[schemas.BookOut], status_code=200)
 @limiter.limit("100/minute")
